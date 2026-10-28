@@ -19,7 +19,7 @@
     <!-- Font Awesome Icons CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Fonts: Prompt (Headings) & Sarabun (Formal Thai Body) -->
+    <!-- Google Fonts: Prompt & Sarabun -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -34,11 +34,11 @@
                     },
                     colors: {
                         executive: {
-                            900: '#0f172a', // Deep Navy
-                            800: '#1e293b', // Slate Dark
-                            700: '#334155', // Slate Neutral
-                            600: '#2563eb', // Royal Blue Accent
-                            50: '#f8fafc',  // Crisp Off-White
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#2563eb',
+                            50: '#f8fafc',
                         }
                     }
                 }
@@ -133,9 +133,12 @@
         <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white p-6 sm:p-8 relative">
             <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
                 
-                <!-- AVATAR CONTAINER WITH EDITABLE TRIGGER -->
+                <!-- AVATAR CONTAINER WITH EDITABLE TRIGGER AND DRAG&DROP -->
                 <div class="relative group shrink-0">
-                    <div class="avatar-container w-32 h-32 rounded-2xl p-1 bg-white/20 backdrop-blur border border-white/30 shadow-lg overflow-hidden relative cursor-pointer" onclick="document.getElementById('profile-upload').click()">
+                    <div class="avatar-container w-32 h-32 rounded-2xl p-1 bg-white/20 backdrop-blur border border-white/30 shadow-lg overflow-hidden relative cursor-pointer"
+                         onclick="document.getElementById('profile-upload').click()"
+                         ondragover="handleDragOver(event)"
+                         ondrop="handleDrop(event)">
                         
                         <!-- Dynamic Image Display -->
                         <img id="profile-img" src="" alt="ปิ่นชนก เนื้อน้อย" class="w-full h-full object-cover rounded-xl hidden">
@@ -264,9 +267,6 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- PERSONAL INTERESTS SECTION -->
-               
             </aside>
 
             <!-- RIGHT COLUMN: ACADEMICS & COMPETENCIES (8 cols on desktop) -->
@@ -295,7 +295,6 @@
                             <p class="text-xs sm:text-sm font-medium text-blue-900 mb-1.5">
                                 ระดับประกาศนียบัตรวิชาชีพ (ปวช.) • อายุ 16 ปี
                             </p>
-                           
                         </div>
                     </div>
                 </section>
@@ -320,7 +319,7 @@
                                 </h3>
                                 <p class="text-xs font-heading text-indigo-800 font-medium">Tarot Card Reading & Intuitive Interpretation</p>
                                 <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                                    มีความรู้ ทักษะ และสมาธิในการอ่านไพ่ยิปซี ให้คำปรึกษา และมีประสบการณ์ดูดวงมากกว่า8ปี
+                                    มีความรู้ ทักษะ และสมาธิในการอ่านไพ่ยิปซี ให้คำปรึกษา และมีประสบการณ์ดูดวงมากกว่า 8 ปี
                                 </p>
                             </div>
                         </div>
@@ -359,9 +358,6 @@
 
                     </div>
                 </section>
-
-                <!-- PERSONAL STRENGTHS & ATTRIBUTES SECTION -->
-               
             </main>
         </div>
 
@@ -382,7 +378,7 @@
         <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
             <i class="fa-solid fa-check"></i>
         </div>
-        <span class="text-xs font-heading font-medium">คัดลอกหมายเลขโทรศัพท์เรียบร้อยแล้ว</span>
+        <span id="toast-message" class="text-xs font-heading font-medium">ทำรายการเรียบร้อยแล้ว</span>
     </div>
 
     <!-- JAVASCRIPT LOGIC -->
@@ -395,26 +391,79 @@
             }
         });
 
-        // Image Upload Handler
+        // Event handler for File Input change
         function handleImageUpload(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (file) {
+                processAndSaveImage(file);
+            }
+            // Reset input value to allow selecting the same file again
+            event.target.value = '';
+        }
 
-            // Validate image type
+        // Drag & Drop Handlers
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+                const file = event.dataTransfer.files[0];
+                processAndSaveImage(file);
+            }
+        }
+
+        // Process, compress and store image
+        function processAndSaveImage(file) {
             if (!file.type.startsWith('image/')) {
+                showToast('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const base64Data = e.target.result;
-                // Save to localStorage
-                try {
-                    localStorage.setItem('cv_pinchanok_profile', base64Data);
-                } catch (err) {
-                    console.warn('Storage limit reached, displaying without persistent save.');
-                }
-                applyProfilePhoto(base64Data);
+                const img = new Image();
+                img.onload = function() {
+                    // Resize and compress image to keep it under LocalStorage quota limit
+                    const canvas = document.createElement('canvas');
+                    const maxDimension = 600; // max width/height in px
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxDimension) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        }
+                    } else {
+                        if (height > maxDimension) {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Compress to JPG format with 85% quality
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+                    try {
+                        localStorage.setItem('cv_pinchanok_profile', compressedBase64);
+                    } catch (err) {
+                        console.warn('Storage limit reached, showing image without persistence.', err);
+                    }
+
+                    applyProfilePhoto(compressedBase64);
+                    showToast('อัปโหลดรูปโปรไฟล์เรียบร้อยแล้ว');
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
@@ -439,8 +488,8 @@
             imgEl.classList.add('hidden');
             fallbackEl.classList.remove('hidden');
             
-            // Clear file input
             document.getElementById('profile-upload').value = '';
+            showToast('รีเซ็ตรูปโปรไฟล์เรียบร้อยแล้ว');
         }
 
         // Safe Copy Phone Number
@@ -452,8 +501,16 @@
             document.execCommand('copy');
             document.body.removeChild(tempInput);
 
-            // Show Toast
+            showToast('คัดลอกหมายเลขโทรศัพท์เรียบร้อยแล้ว');
+        }
+
+        // Helper to show Toast Notification
+        function showToast(text) {
             const toast = document.getElementById('toast');
+            const messageEl = document.getElementById('toast-message');
+            
+            if (messageEl) messageEl.textContent = text;
+
             toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
             toast.classList.add('translate-y-0', 'opacity-100');
 
